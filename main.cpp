@@ -22,6 +22,153 @@
 const int SCR_WIDTH = 1024;
 const int SCR_HEIGHT = 768;
 
+WGPUVertexState createVertexState(WGPUShaderModule shaderModule) {
+	WGPUVertexState vs{};
+	vs.bufferCount = 0;
+	vs.buffers = nullptr;
+	vs.module = shaderModule;
+	vs.entryPoint = "vs_main";
+	vs.constantCount = 0;
+	vs.constants = nullptr;
+	return vs;
+}
+
+WGPUVertexState createVertexStateWithBuffer(WGPUShaderModule shaderModule, WGPUVertexBufferLayout &buf) {
+	WGPUVertexState vs{};
+	vs.bufferCount = 1;
+	vs.buffers = &buf;
+	vs.module = shaderModule;
+	vs.entryPoint = "vs_main";
+	vs.constantCount = 0;
+	vs.constants = nullptr;
+	return vs;
+}
+
+WGPUFragmentState createFragmentState(WGPUShaderModule shaderModule, WGPUColorTargetState &colorTarget) {
+	WGPUFragmentState fs{};
+	fs.nextInChain = nullptr;
+	fs.module = shaderModule;
+	fs.entryPoint = "fs_main";
+	fs.constantCount = 0;
+	fs.constants = nullptr;
+	fs.targetCount = 1;
+	fs.targets = &colorTarget;
+	return fs;
+}
+
+WGPURenderPipeline createStandardRenderPipeline(WGPUDevice device, WGPUShaderModule shaderModule, WGPUTextureFormat surfaceFormat) {
+	
+	WGPUBlendState blendState{};
+	blendState.color.srcFactor = WGPUBlendFactor_SrcAlpha;
+	blendState.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
+	blendState.color.operation = WGPUBlendOperation_Add;
+	blendState.alpha.srcFactor = WGPUBlendFactor_Zero;
+	blendState.alpha.dstFactor = WGPUBlendFactor_One;
+	blendState.alpha.operation = WGPUBlendOperation_Add;
+
+	WGPUColorTargetState colorTarget{};
+	colorTarget.format = surfaceFormat;
+	colorTarget.blend = &blendState;
+	colorTarget.writeMask = WGPUColorWriteMask_All;
+
+	WGPURenderPipelineDescriptor pipelineDesc = {};
+	pipelineDesc.nextInChain = nullptr;
+	pipelineDesc.label = "standard_pipeline";
+	
+	WGPUVertexState vertexState = createVertexState(shaderModule);
+	pipelineDesc.vertex = vertexState;
+
+	WGPUFragmentState fragmentState = createFragmentState(shaderModule, colorTarget);
+	pipelineDesc.fragment = &fragmentState;
+
+	pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
+	pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
+	pipelineDesc.primitive.frontFace = WGPUFrontFace_CCW;
+	pipelineDesc.primitive.cullMode = WGPUCullMode_None; // Replace to front
+
+	pipelineDesc.depthStencil = nullptr;
+
+	// Samples per pixel
+	pipelineDesc.multisample.count = 1;
+	// Default value for the mask, meaning "all bits on"
+	pipelineDesc.multisample.mask = ~0u;
+	// Default value as well (irrelevant for count = 1 anyways)
+	pipelineDesc.multisample.alphaToCoverageEnabled = false;
+
+	pipelineDesc.layout = nullptr;
+	
+
+	WGPURenderPipeline pipeline = wgpuDeviceCreateRenderPipeline(device, &pipelineDesc);
+	return pipeline;
+}
+
+WGPUBindGroupLayout createBindGroupLayout(WGPUDevice device) {
+	WGPUBindGroupLayoutEntry layoutEntry{};
+	layoutEntry.binding = 0;
+	layoutEntry.visibility = WGPUShaderStage_Compute;
+	layoutEntry.buffer.type = WGPUBufferBindingType_Storage;
+	layoutEntry.buffer.hasDynamicOffset = false;
+	layoutEntry.buffer.minBindingSize = 3 * 24;
+
+	WGPUBindGroupLayoutDescriptor bglDesc{};
+	bglDesc.entryCount = 1;
+	bglDesc.entries = &layoutEntry;
+	WGPUBindGroupLayout bgl = wgpuDeviceCreateBindGroupLayout(device, &bglDesc);
+	return bgl;
+}
+
+WGPUComputePipeline createComputePipeline(WGPUDevice device, WGPUShaderModule shaderModule, WGPUBindGroupLayout bgl) {
+
+	WGPUProgrammableStageDescriptor csDesc{};
+	csDesc.entryPoint = "main";
+	csDesc.constantCount = 0;
+	csDesc.constants = nullptr;
+	csDesc.module = shaderModule;
+
+
+	WGPUPipelineLayoutDescriptor layoutDesc{};
+	layoutDesc.bindGroupLayoutCount = 1;
+	layoutDesc.bindGroupLayouts = &bgl;
+
+	WGPUPipelineLayout pipelineLayout = wgpuDeviceCreatePipelineLayout(device, &layoutDesc);
+
+	WGPUComputePipelineDescriptor pipelineDesc{};
+	pipelineDesc.compute = csDesc;
+	pipelineDesc.layout = pipelineLayout;
+
+	WGPUComputePipeline pipeline = wgpuDeviceCreateComputePipeline(device, &pipelineDesc);
+	return pipeline;
+}
+
+
+WGPUBuffer createBuffer(WGPUDevice device) {
+	// Vertex layout: vec4<f32> + vec2<f32> = 6 floats = 24 bytes per-vertex.
+	// 3 vertices:
+	constexpr uint32_t kVertexCount = 3;
+	constexpr uint64_t kVertexSize = 24;
+	uint64_t bufferSize = kVertexCount * kVertexSize;
+
+	WGPUBufferDescriptor bufDesc{};
+	bufDesc.usage = WGPUBufferUsage_Storage | WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst;
+	bufDesc.size = bufferSize;
+	bufDesc.label = "vertex_storage_buffer";
+	return wgpuDeviceCreateBuffer(device, &bufDesc);
+}
+
+WGPUBindGroup bindBuffer(WGPUDevice device, WGPUBuffer buf, uint64_t bufSize, WGPUBindGroupLayout bgl) {
+	WGPUBindGroupEntry bgEntry{};
+	bgEntry.binding = 0;
+	bgEntry.buffer = buf;
+	bgEntry.offset = 0;
+	bgEntry.size = bufSize;
+
+	WGPUBindGroupDescriptor bgDesc{};
+	bgDesc.entryCount = 1;
+	bgDesc.entries = &bgEntry;
+	bgDesc.layout = bgl;
+	return wgpuDeviceCreateBindGroup(device, &bgDesc);
+}
+
 /**
  * Utility function to get a WebGPU adapter, so that
  *     WGPUAdapter adapter = requestAdapterSync(options);
@@ -344,64 +491,29 @@ int main() {
 	wgpuQueueOnSubmittedWorkDone(queue, onQueueWorkDone, nullptr /* pUserData */);
 
 
-	WGPUShaderModule shaderModule = Shader::createShaderModule(device, "shaders/shader.wgsl");
+	WGPUShaderModule shaderRenderModule = Shader::createShaderModule(device, "shaders/shader.wgsl");
 
-	// Pipeline
-	WGPURenderPipelineDescriptor pipelineDesc = {};
-	pipelineDesc.nextInChain = nullptr;
-	pipelineDesc.label = "standard_pipeline";
-	pipelineDesc.vertex.bufferCount = 0;
-	pipelineDesc.vertex.buffers = nullptr;
-	pipelineDesc.vertex.module = shaderModule;
-	pipelineDesc.vertex.entryPoint = "vs_main";
-	pipelineDesc.vertex.constantCount = 0;
-	pipelineDesc.vertex.constants = nullptr;
-	pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
-	pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
-	pipelineDesc.primitive.frontFace = WGPUFrontFace_CCW;
-	pipelineDesc.primitive.cullMode = WGPUCullMode_None; // Replace to front
+	constexpr uint64_t kVertexSize = 24;
+	// Setup VBO for render shader
+	WGPUVertexAttribute attrs[2] = {};
+	attrs[0].format = WGPUVertexFormat_Float32x4;
+	attrs[0].offset = 0;
+	attrs[0].shaderLocation = 0;
+	attrs[0].format = WGPUVertexFormat_Float32x2;
+	attrs[0].offset = 16 /* 32bit * 4 = 16 bytes ? */;
+	attrs[0].shaderLocation = 1;
 
-	WGPUFragmentState fragmentState{};
-	fragmentState.nextInChain = nullptr;
-	fragmentState.module = shaderModule;
-	fragmentState.entryPoint = "fs_main";
-	fragmentState.constantCount = 0;
-	fragmentState.constants = nullptr;
-	
-	pipelineDesc.fragment = &fragmentState;
-	pipelineDesc.depthStencil = nullptr;
+	WGPUVertexBufferLayout vbufLayout = {};
+	vbufLayout.arrayStride = (uint32_t)kVertexSize;
+	vbufLayout.stepMode = WGPUVertexStepMode_Vertex;
+	vbufLayout.attributeCount = 2;
+	vbufLayout.attributes = attrs;
 
-	// Samples per pixel
-	pipelineDesc.multisample.count = 1;
-	// Default value for the mask, meaning "all bits on"
-	pipelineDesc.multisample.mask = ~0u;
-	// Default value as well (irrelevant for count = 1 anyways)
-	pipelineDesc.multisample.alphaToCoverageEnabled = false;
-
-	pipelineDesc.layout = nullptr;
-
-
-	WGPUBlendState blendState{};
-	blendState.color.srcFactor = WGPUBlendFactor_SrcAlpha;
-	blendState.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
-	blendState.color.operation = WGPUBlendOperation_Add;
-	blendState.alpha.srcFactor = WGPUBlendFactor_Zero;
-	blendState.alpha.dstFactor = WGPUBlendFactor_One;
-	blendState.alpha.operation = WGPUBlendOperation_Add;
-
-	WGPUColorTargetState colorTarget{};
-	colorTarget.format = surfaceFormat;
-	colorTarget.blend = &blendState;
-	colorTarget.writeMask = WGPUColorWriteMask_All;
-
-	fragmentState.targetCount = 1; // Maybe change this if many color attachments ?
-	fragmentState.targets = &colorTarget;
-	
-
-	WGPURenderPipeline pipeline = wgpuDeviceCreateRenderPipeline(device, &pipelineDesc);
+	// Render pipeline
+	WGPURenderPipeline pipeline = createStandardRenderPipeline(device, shaderRenderModule, surfaceFormat);
 
 	// No longer needed
-	wgpuShaderModuleRelease(shaderModule);
+	wgpuShaderModuleRelease(shaderRenderModule);
 
 
 
