@@ -102,6 +102,52 @@ WGPURenderPipeline createStandardRenderPipeline(WGPUDevice device, WGPUShaderMod
 	return pipeline;
 }
 
+WGPURenderPipeline createStandardRenderPipeline2(WGPUDevice device, WGPUShaderModule shaderModule, WGPUTextureFormat surfaceFormat, WGPUVertexBufferLayout &buf) {
+	
+	WGPUBlendState blendState{};
+	blendState.color.srcFactor = WGPUBlendFactor_SrcAlpha;
+	blendState.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
+	blendState.color.operation = WGPUBlendOperation_Add;
+	blendState.alpha.srcFactor = WGPUBlendFactor_Zero;
+	blendState.alpha.dstFactor = WGPUBlendFactor_One;
+	blendState.alpha.operation = WGPUBlendOperation_Add;
+
+	WGPUColorTargetState colorTarget{};
+	colorTarget.format = surfaceFormat;
+	colorTarget.blend = &blendState;
+	colorTarget.writeMask = WGPUColorWriteMask_All;
+
+	WGPURenderPipelineDescriptor pipelineDesc = {};
+	pipelineDesc.nextInChain = nullptr;
+	pipelineDesc.label = "standard_pipeline_2";
+	
+	WGPUVertexState vertexState = createVertexStateWithBuffer(shaderModule, buf);
+	pipelineDesc.vertex = vertexState;
+
+	WGPUFragmentState fragmentState = createFragmentState(shaderModule, colorTarget);
+	pipelineDesc.fragment = &fragmentState;
+
+	pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
+	pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
+	pipelineDesc.primitive.frontFace = WGPUFrontFace_CCW;
+	pipelineDesc.primitive.cullMode = WGPUCullMode_None; // Replace to front
+
+	pipelineDesc.depthStencil = nullptr;
+
+	// Samples per pixel
+	pipelineDesc.multisample.count = 1;
+	// Default value for the mask, meaning "all bits on"
+	pipelineDesc.multisample.mask = ~0u;
+	// Default value as well (irrelevant for count = 1 anyways)
+	pipelineDesc.multisample.alphaToCoverageEnabled = false;
+
+	pipelineDesc.layout = nullptr;
+	
+
+	WGPURenderPipeline pipeline = wgpuDeviceCreateRenderPipeline(device, &pipelineDesc);
+	return pipeline;
+}
+
 WGPUBindGroupLayout createBindGroupLayout(WGPUDevice device) {
 	WGPUBindGroupLayoutEntry layoutEntry{};
 	layoutEntry.binding = 0;
@@ -328,6 +374,10 @@ int main() {
 
 	std::cout << "hello" << std::endl;
 
+	constexpr uint32_t kVertexCount = 3;
+	constexpr uint64_t kVertexSize = 24;
+	uint64_t bufferSize = kVertexCount * kVertexSize;
+
 	// We create a descriptor
 	WGPUInstanceDescriptor desc = {};
 	desc.nextInChain = nullptr;
@@ -491,17 +541,17 @@ int main() {
 	wgpuQueueOnSubmittedWorkDone(queue, onQueueWorkDone, nullptr /* pUserData */);
 
 
-	WGPUShaderModule shaderRenderModule = Shader::createShaderModule(device, "shaders/shader.wgsl");
+	WGPUShaderModule computeShaderModule = Shader::createShaderModule(device, "shaders/compute.wgsl");
+	WGPUShaderModule renderShaderModule = Shader::createShaderModule(device, "shaders/render.wgsl");
 
-	constexpr uint64_t kVertexSize = 24;
 	// Setup VBO for render shader
 	WGPUVertexAttribute attrs[2] = {};
 	attrs[0].format = WGPUVertexFormat_Float32x4;
 	attrs[0].offset = 0;
 	attrs[0].shaderLocation = 0;
-	attrs[0].format = WGPUVertexFormat_Float32x2;
-	attrs[0].offset = 16 /* 32bit * 4 = 16 bytes ? */;
-	attrs[0].shaderLocation = 1;
+	attrs[1].format = WGPUVertexFormat_Float32x2;
+	attrs[1].offset = 16 /* 32bit * 4 = 16 bytes ? */;
+	attrs[1].shaderLocation = 1;
 
 	WGPUVertexBufferLayout vbufLayout = {};
 	vbufLayout.arrayStride = (uint32_t)kVertexSize;
@@ -509,11 +559,36 @@ int main() {
 	vbufLayout.attributeCount = 2;
 	vbufLayout.attributes = attrs;
 
+	// Create buffer
+	WGPUBuffer vertexBuffer = createBuffer(device);
+
 	// Render pipeline
-	WGPURenderPipeline pipeline = createStandardRenderPipeline(device, shaderRenderModule, surfaceFormat);
+	WGPURenderPipeline renderPipeline = createStandardRenderPipeline2(device, renderShaderModule, surfaceFormat, vbufLayout);
+
+	// Compute pipeline
+	WGPUBindGroupLayout bgl = createBindGroupLayout(device);
+
+	// // bind group for compute pipeline
+	// WGPUBindGroupEntry bgEntry = {};
+	// bgEntry.binding = 0;
+	// bgEntry.buffer = vertexBuffer;
+	// bgEntry.offset = 0;
+	// bgEntry.size = bufferSize;
+
+	// WGPUBindGroupDescriptor bgDesc = {};
+	// bgDesc.layout = bgl;
+	// bgDesc.entryCount = 1;
+	// bgDesc.entries = &bgEntry;
+	// WGPUBindGroup computeBindGroup = wgpuDeviceCreateBindGroup(device, &bgDesc);
+
+	WGPUBindGroup computeBindGroup = bindBuffer(device, vertexBuffer, bufferSize, bgl);
+
+
+	WGPUComputePipeline computePipeline = createComputePipeline(device, computeShaderModule, bgl);
 
 	// No longer needed
-	wgpuShaderModuleRelease(shaderRenderModule);
+	wgpuShaderModuleRelease(computeShaderModule);
+	wgpuShaderModuleRelease(renderShaderModule);
 
 
 
@@ -540,6 +615,19 @@ int main() {
 		encoderDesc.nextInChain = nullptr;
 		encoderDesc.label = "My command encoder";
 		WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device, &encoderDesc);
+
+
+		// Compute pass
+		WGPUComputePassDescriptor cpEncDesc = {};
+		WGPUComputePassEncoder computePass = wgpuCommandEncoderBeginComputePass(encoder, &cpEncDesc);
+		wgpuComputePassEncoderSetPipeline(computePass, computePipeline);
+		wgpuComputePassEncoderSetBindGroup(computePass, 0, computeBindGroup, 0, nullptr);
+		wgpuComputePassEncoderDispatchWorkgroups(computePass, 3, 1, 1); // 3 invocations
+		wgpuComputePassEncoderEnd(computePass);
+
+
+
+
 		// Create render command
 		WGPURenderPassDescriptor renderPassDesc = {};
 		renderPassDesc.nextInChain = nullptr;
@@ -565,11 +653,11 @@ int main() {
 		WGPURenderPassEncoder renderPass = wgpuCommandEncoderBeginRenderPass(encoder, &renderPassDesc);
 
 		// Set pipeline to render pass
-		wgpuRenderPassEncoderSetPipeline(renderPass, pipeline);
+		wgpuRenderPassEncoderSetPipeline(renderPass, renderPipeline);
+		wgpuRenderPassEncoderSetVertexBuffer(renderPass, 0, vertexBuffer, 0, WGPU_WHOLE_SIZE);
 		wgpuRenderPassEncoderDraw(renderPass, 3, 1, 0, 0);
-
-		
 		wgpuRenderPassEncoderEnd(renderPass);
+
 		wgpuRenderPassEncoderRelease(renderPass);
 
 
@@ -604,7 +692,7 @@ int main() {
 	// Clean up
 	glfwDestroyWindow(window);
 	glfwTerminate();
-	wgpuRenderPipelineRelease(pipeline);
+	wgpuRenderPipelineRelease(renderPipeline);
 	wgpuSurfaceUnconfigure(surface);
 	wgpuSurfaceRelease(surface);
 	wgpuQueueRelease(queue);

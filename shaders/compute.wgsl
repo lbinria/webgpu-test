@@ -1,4 +1,4 @@
-struct Vertex { pos: vec4<f32>; uv: vec2<f32>; };
+struct Vertex { pos: vec4<f32>, uv: vec2<f32> };
 @group(0) @binding(0) var<storage, read_write> vertices: array<Vertex>;
 
 @compute @workgroup_size(1)
