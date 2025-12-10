@@ -15,8 +15,11 @@ endif()
 add_subdirectory(WebGPU/WebGPU-distribution-wgpu-v0.19.4.1)
 add_subdirectory(glfw3webgpu)
 
-add_executable(webgpu_minimal main.cpp)
+add_executable(webgpu_minimal main.cpp shader.h)
 
 # Add the 'webgpu' target as a dependency of our App
 target_link_libraries(webgpu_minimal PRIVATE glfw webgpu glfw3webgpu)
 target_copy_webgpu_binaries(webgpu_minimal)
+
+message("Copying shaders from ${PROJECT_SOURCE_DIR}/shaders to ${CMAKE_CURRENT_BINARY_DIR}/shaders")
+file(COPY ${PROJECT_SOURCE_DIR}/shaders DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
