@@ -5,8 +5,9 @@ const int SCR_WIDTH = 1024;
 const int SCR_HEIGHT = 768;
 
 
+const uint32_t kTriCount = 100;
 // 3 vertices:
-const uint32_t kVertexCount = 3;
+const uint32_t kVertexCount = 3 * kTriCount;
 // Vertex layout: vec4<f32> = 4 floats = 16 bytes per-vertex.
 const uint64_t kVertexSize = 16;
 
@@ -523,7 +524,7 @@ void App::loop() {
 	WGPUComputePassEncoder computePass = wgpuCommandEncoderBeginComputePass(encoder, &cpEncDesc);
 	wgpuComputePassEncoderSetPipeline(computePass, computePipeline);
 	wgpuComputePassEncoderSetBindGroup(computePass, 0, computeBindGroup, 0, nullptr);
-	wgpuComputePassEncoderDispatchWorkgroups(computePass, 1, 1, 1); // 3 invocations
+	wgpuComputePassEncoderDispatchWorkgroups(computePass, kTriCount, 1, 1); // 100 invocations
 	wgpuComputePassEncoderEnd(computePass);
 
 	// Render pass
@@ -551,7 +552,7 @@ void App::loop() {
 
 	wgpuRenderPassEncoderSetPipeline(renderPass, renderPipeline);
 	wgpuRenderPassEncoderSetVertexBuffer(renderPass, 0, vertexBuffer, 0, WGPU_WHOLE_SIZE);
-	wgpuRenderPassEncoderDraw(renderPass, 3, 1, 0, 0);
+	wgpuRenderPassEncoderDraw(renderPass, kVertexCount, 1, 0, 0);
 	wgpuRenderPassEncoderEnd(renderPass);
 
 	wgpuRenderPassEncoderRelease(renderPass);
