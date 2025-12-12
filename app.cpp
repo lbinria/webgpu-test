@@ -5,10 +5,9 @@ const int SCR_WIDTH = 1024;
 const int SCR_HEIGHT = 768;
 
 
-// Vertex layout: vec4<f32> + vec2<f32> = 6 floats = 24 bytes per-vertex.
 // 3 vertices:
 const uint32_t kVertexCount = 3;
-// const uint64_t kVertexSize = 24;
+// Vertex layout: vec4<f32> = 4 floats = 16 bytes per-vertex.
 const uint64_t kVertexSize = 16;
 
 /**
@@ -144,9 +143,6 @@ WGPURenderPipeline createRenderPipeline(WGPUDevice device, WGPUTextureFormat sur
 	attrs[0].format = WGPUVertexFormat_Float32x4;
 	attrs[0].offset = 0;
 	attrs[0].shaderLocation = 0;
-	// attrs[1].format = WGPUVertexFormat_Float32x2;
-	// attrs[1].offset = 16 /* 32bit * 4 = 16 bytes ? */;
-	// attrs[1].shaderLocation = 1;
 
 	WGPUVertexBufferLayout bufLayout = {};
 	bufLayout.arrayStride = kVertexSize;
@@ -599,6 +595,5 @@ void App::clean() {
 	wgpuSurfaceRelease(surface);
 	wgpuQueueRelease(queue);
 	wgpuDeviceRelease(device);
-	// wgpuAdapterRelease(adapter);
 	wgpuInstanceRelease(instance);
 }
