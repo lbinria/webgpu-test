@@ -4,7 +4,7 @@ set(CMAKE_CXX_STANDARD 20)
 
 if (NOT EMSCRIPTEN)
     # Add the 'glfw' directory, which contains the definition of a 'glfw' target
-    add_subdirectory(glfw)
+    add_subdirectory(libs/glfw)
 else()
     # Create a mock 'glfw' target that just sets the `-sUSE_GLFW=3` link option:
     add_library(glfw INTERFACE)
@@ -12,8 +12,8 @@ else()
 endif()
 # In both cases, we can now link to the 'glfw' target
 
-add_subdirectory(WebGPU/WebGPU-distribution-wgpu-v0.19.4.1)
-add_subdirectory(glfw3webgpu)
+add_subdirectory(libs/WebGPU/WebGPU-distribution-wgpu-v0.19.4.1)
+add_subdirectory(libs/glfw3webgpu)
 
 add_executable(webgpu_minimal main.cpp app.h app.cpp shader.h)
 
