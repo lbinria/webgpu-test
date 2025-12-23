@@ -32,10 +32,7 @@ struct App {
 	WGPUSurface surface;
 
 
-	// TODO maybe can remove, by releasing them after useless
-	// WGPUAdapter adapter;
 	WGPUInstance instance;
-
 
 	WGPUBindGroup computeBindGroup;
 	WGPUComputePipeline computePipeline;

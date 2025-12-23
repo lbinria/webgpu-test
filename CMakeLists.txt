@@ -15,7 +15,7 @@ endif()
 add_subdirectory(libs/WebGPU/WebGPU-distribution-wgpu-v0.19.4.1)
 add_subdirectory(libs/glfw3webgpu)
 
-add_executable(webgpu_minimal main.cpp app.h app.cpp shader.h)
+add_executable(webgpu_minimal main.cpp app.h app.cpp shader.h helpers.h)
 
 # Add the 'webgpu' target as a dependency of our App
 target_link_libraries(webgpu_minimal PRIVATE glfw webgpu glfw3webgpu)
