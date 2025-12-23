@@ -1,15 +1,13 @@
 #include "app.h"
 #include "helpers.h"
 
+// Screen dims
 const int SCR_WIDTH = 1024;
 const int SCR_HEIGHT = 768;
 
-
-const uint32_t kTriCount = 100;
-// 3 vertices:
-const uint32_t kVertexCount = 3 * kTriCount;
-// Vertex layout: vec4<f32> = 4 floats = 16 bytes per-vertex.
-const uint64_t kVertexSize = 16;
+const uint32_t nTri = 100;
+const uint32_t nVerts = 3 * nTri; // 3 verts by tri
+const uint64_t vertSize = 16; // Vertex layout: vec4<f32> = 4 floats = 16 bytes per-vertex.
 
 
 WGPURenderPipeline createRenderPipeline(WGPUDevice device, WGPUTextureFormat surfaceFormat) {
@@ -23,7 +21,7 @@ WGPURenderPipeline createRenderPipeline(WGPUDevice device, WGPUTextureFormat sur
 	attrs[0].shaderLocation = 0;
 
 	WGPUVertexBufferLayout bufLayout = {};
-	bufLayout.arrayStride = kVertexSize;
+	bufLayout.arrayStride = vertSize;
 	bufLayout.stepMode = WGPUVertexStepMode_Vertex;
 	// bufLayout.attributeCount = 2;
 	bufLayout.attributeCount = 1;
@@ -70,7 +68,7 @@ WGPURenderPipeline createRenderPipeline(WGPUDevice device, WGPUTextureFormat sur
 	pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
 	pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
 	pipelineDesc.primitive.frontFace = WGPUFrontFace_CCW;
-	pipelineDesc.primitive.cullMode = WGPUCullMode_None; // Replace to front
+	pipelineDesc.primitive.cullMode = WGPUCullMode_None;
 
 	pipelineDesc.depthStencil = nullptr;
 
@@ -120,18 +118,6 @@ WGPUComputePipeline createComputePipeline(WGPUDevice device, WGPUBindGroupLayout
 	return pipeline;
 }
 
-
-WGPUBuffer createBuffer(WGPUDevice device) {
-
-	uint64_t bufferSize = kVertexCount * kVertexSize;
-
-	WGPUBufferDescriptor bufDesc{};
-	bufDesc.usage = WGPUBufferUsage_Storage | WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst;
-	bufDesc.size = bufferSize;
-	bufDesc.label = "vertex_storage_buffer";
-	return wgpuDeviceCreateBuffer(device, &bufDesc);
-}
-
 WGPUTextureView getNextSurfaceTextureView(WGPUSurface surface) {
 	// Get the surface texture
 	WGPUSurfaceTexture surfaceTexture;
@@ -166,7 +152,7 @@ bool App::init() {
 
 	std::cout << "hello" << std::endl;
 
-	uint64_t bufferSize = kVertexCount * kVertexSize;
+	uint64_t bufferSize = nVerts * vertSize;
 
 	// We create a descriptor
 	WGPUInstanceDescriptor desc = {};
@@ -352,7 +338,11 @@ bool App::init() {
 	WGPUBindGroupLayout bgl = wgpuDeviceCreateBindGroupLayout(device, &bglDesc);
 
 	// Create buffer
-	vertexBuffer = createBuffer(device);
+	WGPUBufferDescriptor bufDesc{};
+	bufDesc.usage = WGPUBufferUsage_Storage | WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst;
+	bufDesc.size = bufferSize;
+	bufDesc.label = "vertex_storage_buffer";
+	vertexBuffer = wgpuDeviceCreateBuffer(device, &bufDesc);
 
 	WGPUBindGroupEntry bgEntry{};
 	bgEntry.binding = 0;
@@ -400,7 +390,7 @@ void App::loop() {
 	WGPUComputePassEncoder computePass = wgpuCommandEncoderBeginComputePass(encoder, &cpEncDesc);
 	wgpuComputePassEncoderSetPipeline(computePass, computePipeline);
 	wgpuComputePassEncoderSetBindGroup(computePass, 0, computeBindGroup, 0, nullptr);
-	wgpuComputePassEncoderDispatchWorkgroups(computePass, kTriCount, 1, 1); // 100 invocations
+	wgpuComputePassEncoderDispatchWorkgroups(computePass, nTri, 1, 1); // 100 invocations
 	wgpuComputePassEncoderEnd(computePass);
 
 	// Render pass
@@ -428,7 +418,7 @@ void App::loop() {
 
 	wgpuRenderPassEncoderSetPipeline(renderPass, renderPipeline);
 	wgpuRenderPassEncoderSetVertexBuffer(renderPass, 0, vertexBuffer, 0, WGPU_WHOLE_SIZE);
-	wgpuRenderPassEncoderDraw(renderPass, kVertexCount, 1, 0, 0);
+	wgpuRenderPassEncoderDraw(renderPass, nVerts, 1, 0, 0);
 	wgpuRenderPassEncoderEnd(renderPass);
 
 	wgpuRenderPassEncoderRelease(renderPass);
