@@ -455,11 +455,13 @@ bool App::isRunning() {
 
 void App::clean() {
 	// Clean up
-	glfwDestroyWindow(window);
-	glfwTerminate();
 	wgpuRenderPipelineRelease(renderPipeline);
 	wgpuSurfaceUnconfigure(surface);
 	wgpuSurfaceRelease(surface);
+
+	glfwDestroyWindow(window);
+	glfwTerminate();
+
 	wgpuQueueRelease(queue);
 	wgpuDeviceRelease(device);
 	wgpuInstanceRelease(instance);
