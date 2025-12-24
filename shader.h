@@ -30,11 +30,13 @@ struct Shader {
 			std::cout << "An error occured when reading shader file " << e.what() << std::endl;
 		}
 
+		// Create WSGL descriptor
 		WGPUShaderModuleWGSLDescriptor shaderCodeDesc{};
 		shaderCodeDesc.chain.next = nullptr;
 		shaderCodeDesc.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
 		shaderCodeDesc.code = code.c_str();
 
+		// Create shader module descriptor
 		WGPUShaderModuleDescriptor shaderDesc{};
 		shaderDesc.nextInChain = &shaderCodeDesc.chain;
 		shaderDesc.label = "shader_module";
@@ -43,6 +45,7 @@ struct Shader {
 		shaderDesc.hints = nullptr;
 		#endif
 
+		// Create shader module
 		WGPUShaderModule shaderModule = wgpuDeviceCreateShaderModule(device, &shaderDesc);
 		return shaderModule;
 	}

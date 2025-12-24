@@ -23,10 +23,8 @@ WGPURenderPipeline createRenderPipeline(WGPUDevice device, WGPUTextureFormat sur
 	WGPUVertexBufferLayout bufLayout = {};
 	bufLayout.arrayStride = vertSize;
 	bufLayout.stepMode = WGPUVertexStepMode_Vertex;
-	// bufLayout.attributeCount = 2;
 	bufLayout.attributeCount = 1;
 	bufLayout.attributes = attrs;
-
 
 	WGPUBlendState blendState{};
 	blendState.color.srcFactor = WGPUBlendFactor_SrcAlpha;
@@ -150,7 +148,7 @@ WGPUTextureView getNextSurfaceTextureView(WGPUSurface surface) {
 
 bool App::init() {
 
-	std::cout << "hello" << std::endl;
+	std::cout << "hello wgpu !" << std::endl;
 
 	uint64_t bufferSize = nVerts * vertSize;
 
@@ -177,6 +175,7 @@ bool App::init() {
 		return false;
  	}
 
+	// Create window
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 	window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "webgpu test", nullptr, nullptr);
@@ -206,6 +205,7 @@ bool App::init() {
 	supportedLimits.nextInChain = nullptr;
 	bool success = wgpuAdapterGetLimits(adapter, &supportedLimits); 
 
+	// Display adapter limits
 	if (success) {
 		std::cout << "Adapter limits:" << std::endl;
 		std::cout << " - maxTextureDimension1D: " << supportedLimits.limits.maxTextureDimension1D << std::endl;
@@ -214,10 +214,11 @@ bool App::init() {
 		std::cout << " - maxTextureArrayLayers: " << supportedLimits.limits.maxTextureArrayLayers << std::endl;
 	}
 
-
 	WGPUAdapterProperties properties = {};
 	properties.nextInChain = nullptr;
 	wgpuAdapterGetProperties(adapter, &properties);
+
+	// Display adapter properties
 	std::cout << "Adapter properties:" << std::endl;
 	std::cout << " - vendorID: " << properties.vendorID << std::endl;
 	if (properties.vendorName) {
@@ -251,13 +252,13 @@ bool App::init() {
 	// Call the function a second time, with a non-null return address
 	wgpuAdapterEnumerateFeatures(adapter, features.data());
 
+	// Display adapter features
 	std::cout << "Adapter features:" << std::endl;
 	std::cout << std::hex; // Write integers as hexadecimal to ease comparison with webgpu.h literals
 	for (auto f : features) {
 		std::cout << " - 0x" << f << std::endl;
 	}
 	std::cout << std::dec; // Restore decimal numbers
-
 
 	std::cout << "Requesting device..." << std::endl;
 
@@ -273,6 +274,7 @@ bool App::init() {
 	deviceDesc.requiredLimits = nullptr; // we do not require any specific limit
 	deviceDesc.defaultQueue.nextInChain = nullptr;
 	deviceDesc.defaultQueue.label = "The default queue";
+
 	// [...] Set device lost callback
 	// A function that is invoked whenever the device stops being available.
 	deviceDesc.deviceLostCallback = [](WGPUDeviceLostReason reason, char const* message, void* /* pUserData */) {
@@ -288,12 +290,13 @@ bool App::init() {
 	};
 	wgpuDeviceSetUncapturedErrorCallback(device, onDeviceError, nullptr /* pUserData */);
 
+	// Display device features
 	inspectDevice(device);
 
 	// Surface config
 	WGPUTextureFormat surfaceFormat = wgpuSurfaceGetPreferredFormat(surface, adapter);
 
-	// Seems to be released now...
+	// We can release it now !
 	wgpuAdapterRelease(adapter);
 
 	WGPUSurfaceConfiguration config = {};
@@ -311,15 +314,13 @@ bool App::init() {
 
 
 
-	// Command queue
+	// Get command queue
 	queue = wgpuDeviceGetQueue(device);
 
 	auto onQueueWorkDone = [](WGPUQueueWorkDoneStatus status, void* /* pUserData */) {
 		std::cout << "Queued work finished with status: " << status << std::endl;
 	};
 	wgpuQueueOnSubmittedWorkDone(queue, onQueueWorkDone, nullptr /* pUserData */);
-
-
 
 	// Render pipeline
 	renderPipeline = createRenderPipeline(device, surfaceFormat);
@@ -366,10 +367,12 @@ void App::loop() {
 
 	glfwPollEvents();
 	
+	// Quit on escape
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE)) {
 		glfwSetWindowShouldClose(window, true);
 	}
-	
+
+	// Obtain next surface texture from swap-chain
 	auto targetView = getNextSurfaceTextureView(surface);
 	if (!targetView)
 		return;
@@ -383,7 +386,6 @@ void App::loop() {
 	encoderDesc.nextInChain = nullptr;
 	encoderDesc.label = "command_encoder";
 	WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device, &encoderDesc);
-
 
 	// Compute pass
 	WGPUComputePassDescriptor cpEncDesc = {};
@@ -424,7 +426,7 @@ void App::loop() {
 	wgpuRenderPassEncoderRelease(renderPass);
 
 
-	// Finally encode and submit the command
+	// Finally encode and submit the whole command
 	WGPUCommandBufferDescriptor cmdBufferDescriptor = {};
 	cmdBufferDescriptor.nextInChain = nullptr;
 	cmdBufferDescriptor.label = "Command buffer";
@@ -454,7 +456,6 @@ bool App::isRunning() {
 }
 
 void App::clean() {
-	// Clean up
 	wgpuRenderPipelineRelease(renderPipeline);
 	wgpuSurfaceUnconfigure(surface);
 	wgpuSurfaceRelease(surface);
