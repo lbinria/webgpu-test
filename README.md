@@ -5,6 +5,12 @@ This example invoke N times a compute shader to emit N triangles stored into a S
 Note that the value of N is hard-coded and all the code is contained in a single file to provide an overview of WebGPU initialization and the creation of pipelines, buffers, etc.
 This is just an example.
 
+# Prerequisites
+
+Eventually install if missing:
+
+`sudo apt-get install -y build-essential cmake libxkbcommon-dev libxinerama-dev libxcursor-dev libxi-dev`
+
 # Build & Run
 
 ```
