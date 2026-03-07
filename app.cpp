@@ -9,13 +9,14 @@ const uint32_t nTri = 100;
 const uint32_t nVerts = 3 * nTri; // 3 verts by tri
 const uint64_t vertSize = 16; // Vertex layout: vec4<f32> = 4 floats = 16 bytes per-vertex.
 
+const uint64_t bufferSize = nVerts * vertSize;
 
-WGPURenderPipeline createRenderPipeline(WGPUDevice device, WGPUTextureFormat surfaceFormat) {
+WGPURenderPipeline App::createRenderPipeline(WGPUDevice device, WGPUTextureFormat surfaceFormat) {
 	
 	WGPUShaderModule shaderModule = Shader::createShaderModule(device, "shaders/render.wgsl");
 
 	// Setup VBO for render shader
-	WGPUVertexAttribute attrs[2] = {};
+	WGPUVertexAttribute attrs[1] = {};
 	attrs[0].format = WGPUVertexFormat_Float32x4;
 	attrs[0].offset = 0;
 	attrs[0].shaderLocation = 0;
@@ -87,7 +88,38 @@ WGPURenderPipeline createRenderPipeline(WGPUDevice device, WGPUTextureFormat sur
 	return pipeline;
 }
 
-WGPUComputePipeline createComputePipeline(WGPUDevice device, WGPUBindGroupLayout bgl) {
+WGPUComputePipeline App::createComputePipeline(WGPUDevice device) {
+
+	WGPUBindGroupLayoutEntry layoutEntry{};
+	layoutEntry.binding = 0;
+	layoutEntry.visibility = WGPUShaderStage_Compute;
+	layoutEntry.buffer.type = WGPUBufferBindingType_Storage;
+	layoutEntry.buffer.hasDynamicOffset = false;
+	layoutEntry.buffer.minBindingSize = bufferSize;
+
+	WGPUBindGroupLayoutDescriptor bglDesc{};
+	bglDesc.entryCount = 1;
+	bglDesc.entries = &layoutEntry;
+	WGPUBindGroupLayout bgl = wgpuDeviceCreateBindGroupLayout(device, &bglDesc);
+
+	// Create buffer
+	WGPUBufferDescriptor bufDesc{};
+	bufDesc.usage = WGPUBufferUsage_Storage | WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst;
+	bufDesc.size = bufferSize;
+	bufDesc.label = "vertex_storage_buffer";
+	vertexBuffer = wgpuDeviceCreateBuffer(device, &bufDesc);
+
+	WGPUBindGroupEntry bgEntry{};
+	bgEntry.binding = 0;
+	bgEntry.buffer = vertexBuffer;
+	bgEntry.offset = 0;
+	bgEntry.size = bufferSize;
+
+	WGPUBindGroupDescriptor bgDesc{};
+	bgDesc.entryCount = 1;
+	bgDesc.entries = &bgEntry;
+	bgDesc.layout = bgl;
+	computeBindGroup = wgpuDeviceCreateBindGroup(device, &bgDesc);
 
 	WGPUShaderModule shaderModule = Shader::createShaderModule(device, "shaders/compute.wgsl");
 
@@ -150,7 +182,7 @@ bool App::init() {
 
 	std::cout << "hello wgpu !" << std::endl;
 
-	uint64_t bufferSize = nVerts * vertSize;
+	
 
 	// We create a descriptor
 	WGPUInstanceDescriptor desc = {};
@@ -324,41 +356,8 @@ bool App::init() {
 
 	// Render pipeline
 	renderPipeline = createRenderPipeline(device, surfaceFormat);
-
 	// Compute pipeline
-	WGPUBindGroupLayoutEntry layoutEntry{};
-	layoutEntry.binding = 0;
-	layoutEntry.visibility = WGPUShaderStage_Compute;
-	layoutEntry.buffer.type = WGPUBufferBindingType_Storage;
-	layoutEntry.buffer.hasDynamicOffset = false;
-	layoutEntry.buffer.minBindingSize = bufferSize;
-
-	WGPUBindGroupLayoutDescriptor bglDesc{};
-	bglDesc.entryCount = 1;
-	bglDesc.entries = &layoutEntry;
-	WGPUBindGroupLayout bgl = wgpuDeviceCreateBindGroupLayout(device, &bglDesc);
-
-	// Create buffer
-	WGPUBufferDescriptor bufDesc{};
-	bufDesc.usage = WGPUBufferUsage_Storage | WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst;
-	bufDesc.size = bufferSize;
-	bufDesc.label = "vertex_storage_buffer";
-	vertexBuffer = wgpuDeviceCreateBuffer(device, &bufDesc);
-
-	WGPUBindGroupEntry bgEntry{};
-	bgEntry.binding = 0;
-	bgEntry.buffer = vertexBuffer;
-	bgEntry.offset = 0;
-	bgEntry.size = bufferSize;
-
-	WGPUBindGroupDescriptor bgDesc{};
-	bgDesc.entryCount = 1;
-	bgDesc.entries = &bgEntry;
-	bgDesc.layout = bgl;
-	computeBindGroup = wgpuDeviceCreateBindGroup(device, &bgDesc);
-
-
-	computePipeline = createComputePipeline(device, bgl);
+	computePipeline = createComputePipeline(device);
 
 	return true;
 }

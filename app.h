@@ -26,6 +26,9 @@ struct App {
 	void clean();
 	bool isRunning();
 
+	WGPURenderPipeline createRenderPipeline(WGPUDevice device, WGPUTextureFormat surfaceFormat);
+	WGPUComputePipeline createComputePipeline(WGPUDevice device);
+
 	GLFWwindow *window;
 	WGPUDevice device;
 	WGPUQueue queue;
