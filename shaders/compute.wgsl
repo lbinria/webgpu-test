@@ -1,31 +1,22 @@
-struct Vertex { pos: vec4<f32> };
+struct Vertex { 
+    pos: vec4<f32> 
+};
 @group(0) @binding(0) var<storage, read_write> vertices: array<Vertex>;
+
+// Quad mesh is represented with two read-only arrays
+@group(0) @binding(1) var<storage, read> points: array<vec4<f32>>;
+@group(0) @binding(2) var<storage, read> facets: array<i32>;
+@group(0) @binding(3) var<uniform> nFacets: i32;
 
 @compute @workgroup_size(1)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
-    // Hard-coded number of rows & cols
-    let nRows = 10u;
-    let nCols = 10u;
-    let nTri = nRows * nCols;
 
-    // If global invocation id is greater than number of triangles, exit
-    if (gid.x >= nTri) { return; }
+    // If global invocation id is greater than number of facets, exit
+    if (gid.x >= cast<u32>(nFacets)) { return; }
 
     // Global invocation id
-    let i = gid.x;
+    let f = gid.x;
     
-    // Compute height size of a triangle according to number of rows
-    let size : f32 = 1. / f32(nRows);
-
-    // Compute current column / row number
-    let col : f32 = f32(i) % f32(nCols);
-    let row : f32 = floor(f32(i) / f32(nRows));
-
-    // Compute offsets (x, y) according to i
-    let off : f32 = -1. + size;
-    let xoff : f32 = off + col * size * 2.;
-    let yoff : f32 = off + row * size * 2.;
-
     // Below, set buffer !
     // 3 vertices per triangle
     // Each vertex is aligned in vector [a,b,c,d,e,f] first tri: (a,b,c); second tri: (d,e,f), etc.
