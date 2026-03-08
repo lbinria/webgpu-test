@@ -3,10 +3,11 @@ struct Vertex {
 };
 @group(0) @binding(0) var<storage, read_write> vertices: array<Vertex>;
 
-// Quad mesh is represented with two read-only arrays
+// Mesh is represented with two read-only arrays
 @group(0) @binding(1) var<storage, read> points: array<vec4<f32>>;
-@group(0) @binding(2) var<storage, read> facets: array<i32>;
-@group(0) @binding(3) var<uniform> nFacets: i32;
+@group(0) @binding(2) var<storage, read> offsets: array<i32>;
+@group(0) @binding(3) var<storage, read> facets: array<i32>;
+@group(0) @binding(4) var<uniform> nFacets: i32;
 
 @compute @workgroup_size(1)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {

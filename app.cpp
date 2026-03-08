@@ -1,5 +1,6 @@
 #include "app.h"
 #include "helpers.h"
+#include "ply_loader.h"
 
 // Screen dims
 const int SCR_WIDTH = 1024;
@@ -236,6 +237,12 @@ bool App::init() {
 
 	std::cout << "hello wgpu !" << std::endl;
 
+	long nverts, nfacets;
+	PlyLoader plyLoader;
+	auto m = plyLoader.load("../airplane.ply");
+	std::cout << "Ply loaded" << std::endl;
+	std::cout << " - nverts: " << m.points.size() << std::endl;
+	std::cout << " - nfacets: " << m.nfacets << std::endl;
 	
 
 	// We create a descriptor
