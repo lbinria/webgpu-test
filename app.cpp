@@ -97,6 +97,11 @@ WGPUBindGroupLayout createComputeBindGroupLayout(WGPUDevice device) {
 	layoutEntry.buffer.hasDynamicOffset = false;
 	layoutEntry.buffer.minBindingSize = bufferSize;
 
+	WGPUBindGroupLayoutEntry uniformLayoutEntry{};
+	uniformLayoutEntry.binding = 4; // Must match the binding index you used above
+	uniformLayoutEntry.visibility = WGPUShaderStage_Compute; // or the relevant shader stage
+	uniformLayoutEntry.buffer.type = WGPUBufferBindingType_Uniform; // For a uniform buffer
+
     // // Create bind group layout entry for SSBO
     // WGPUBindGroupLayoutEntry ssboEntry{};
     // ssboEntry.binding = 1; // Another binding index for SSBO
@@ -106,16 +111,16 @@ WGPUBindGroupLayout createComputeBindGroupLayout(WGPUDevice device) {
     // ssboEntry.buffer.minBindingSize = ssboSize;
 
 	WGPUBindGroupLayoutDescriptor bglDesc{};
-	bglDesc.entryCount = 1;
-	// bglDesc.entryCount = 2;
-    // WGPUBindGroupLayoutEntry entries[] = { layoutEntry, ssboEntry };
-    // bglDesc.entries = entries;
-	bglDesc.entries = &layoutEntry;
+	// bglDesc.entryCount = 1;
+	// bglDesc.entries = &layoutEntry;
+	bglDesc.entryCount = 2;
+    WGPUBindGroupLayoutEntry entries[] = { layoutEntry, uniformLayoutEntry };
+    bglDesc.entries = entries;
 	WGPUBindGroupLayout bgl = wgpuDeviceCreateBindGroupLayout(device, &bglDesc);
 	return bgl;
 }
 
-WGPUBindGroup createComputeBindGroup(WGPUDevice device, WGPUBindGroupLayout bgl, WGPUBuffer &vertexBuffer, WGPUBuffer &nFacetsUniformBuffer) {
+WGPUBindGroup createComputeBindGroup(WGPUDevice device, WGPUBindGroupLayout bgl, WGPUBuffer vertexBuffer, WGPUBuffer nFacetsUniformBuffer) {
     // // Update bind group entries
     // WGPUBindGroupEntry bgEntries[2]{};
     // bgEntries[0].binding = 0;
@@ -128,12 +133,12 @@ WGPUBindGroup createComputeBindGroup(WGPUDevice device, WGPUBindGroupLayout bgl,
     // bgEntries[1].offset = 0;
     // bgEntries[1].size = ssboSize;
 
-	// // Create a bind group entry for the uniform
-	// WGPUBindGroupEntry uniformEntry{};
-	// uniformEntry.binding = 4; // Binding index for facets length
-	// uniformEntry.buffer = nFacetsUniformBuffer;
-	// uniformEntry.offset = 0;
-	// uniformEntry.size = sizeof(int);
+	// Create a bind group entry for the uniform
+	WGPUBindGroupEntry uniformEntry{};
+	uniformEntry.binding = 4; // Binding index for facets length
+	uniformEntry.buffer = nFacetsUniformBuffer;
+	uniformEntry.offset = 0;
+	uniformEntry.size = sizeof(int);
 
 	WGPUBindGroupEntry bgEntry{};
 	bgEntry.binding = 0;
@@ -141,14 +146,14 @@ WGPUBindGroup createComputeBindGroup(WGPUDevice device, WGPUBindGroupLayout bgl,
 	bgEntry.offset = 0;
 	bgEntry.size = bufferSize;
 
-    // WGPUBindGroupEntry bgEntries[2] = {bgEntry, uniformEntry};
 
 
 	WGPUBindGroupDescriptor bgDesc{};
-	bgDesc.entryCount = 1;
-	bgDesc.entries = &bgEntry;
-	// bgDesc.entryCount = 2;
-	// bgDesc.entries = bgEntries;
+	// bgDesc.entryCount = 1;
+	// bgDesc.entries = &bgEntry;
+	bgDesc.entryCount = 2;
+    WGPUBindGroupEntry bgEntries[2] = {bgEntry, uniformEntry};
+	bgDesc.entries = bgEntries;
 	bgDesc.layout = bgl;
 	return wgpuDeviceCreateBindGroup(device, &bgDesc);
 }
@@ -165,11 +170,11 @@ WGPUComputePipeline App::createComputePipeline(WGPUDevice device) {
 	// Create a buffer for the uniform
 	WGPUBufferDescriptor nFacetsUniformBufferDesc{};
 	nFacetsUniformBufferDesc.size = sizeof(int); // Size for an int
-	nFacetsUniformBufferDesc.usage = WGPUBufferUsage_Uniform;
+	nFacetsUniformBufferDesc.usage = WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst;
 	WGPUBuffer nFacetsUniformBuffer = wgpuDeviceCreateBuffer(device, &nFacetsUniformBufferDesc);
 
 	// Update uniform buffer with length value
-	int facetsLength = 10; // Set this to your facets array length
+	int facetsLength = 3; // Set this to your facets array length
 	wgpuQueueWriteBuffer(wgpuDeviceGetQueue(device), nFacetsUniformBuffer, 0, &facetsLength, sizeof(int));
 
 	// Create vertex buffer
