@@ -89,26 +89,7 @@ WGPURenderPipeline App::createRenderPipeline(WGPUDevice device, WGPUTextureForma
 	return pipeline;
 }
 
-WGPUComputePipeline App::createComputePipeline(WGPUDevice device) {
-
-// // Create a buffer for the uniform
-// WGPUBufferDescriptor uniformDesc{};
-// uniformDesc.size = sizeof(int); // Size for an int
-// uniformDesc.usage = WGPUBufferUsage_Uniform;
-// WGPUBuffer lengthBuffer = wgpuDeviceCreateBuffer(device, &uniformDesc);
-
-// // Update uniform buffer with length value
-// int facetsLength = ...; // Set this to your facets array length
-// wgpuQueueWriteBuffer(wgpuDeviceGetQueue(device), lengthBuffer, 0, &facetsLength, sizeof(int));
-
-// // Create a bind group entry for the uniform
-// WGPUBindGroupEntry uniformEntry{};
-// uniformEntry.binding = 2; // Binding index for facets length
-// uniformEntry.buffer = lengthBuffer;
-// uniformEntry.offset = 0;
-// uniformEntry.size = sizeof(int);
-
-
+WGPUBindGroupLayout createComputeBindGroupLayout(WGPUDevice device) {
 	WGPUBindGroupLayoutEntry layoutEntry{};
 	layoutEntry.binding = 0;
 	layoutEntry.visibility = WGPUShaderStage_Compute;
@@ -131,25 +112,10 @@ WGPUComputePipeline App::createComputePipeline(WGPUDevice device) {
     // bglDesc.entries = entries;
 	bglDesc.entries = &layoutEntry;
 	WGPUBindGroupLayout bgl = wgpuDeviceCreateBindGroupLayout(device, &bglDesc);
+	return bgl;
+}
 
-	// Create buffer
-	WGPUBufferDescriptor bufDesc{};
-	bufDesc.usage = WGPUBufferUsage_Storage | WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst;
-	bufDesc.size = bufferSize;
-	bufDesc.label = "vertex_storage_buffer";
-	vertexBuffer = wgpuDeviceCreateBuffer(device, &bufDesc);
-
-//    // Create SSBO buffer
-//     WGPUBufferDescriptor ssboDesc{};
-//     ssboDesc.usage = WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst;
-//     ssboDesc.size = ssboSize;
-//     ssboDesc.label = "ssbo_buffer";
-
-    // // Create the SSBO and upload data
-    // WGPUBuffer ssboBuffer = wgpuDeviceCreateBuffer(device, &ssboDesc);
-    // wgpuQueueWriteBuffer(wgpuDeviceGetQueue(device), ssboBuffer, 0, ssboData, ssboSize);
-
-
+WGPUBindGroup createComputeBindGroup(WGPUDevice device, WGPUBindGroupLayout bgl, WGPUBuffer &vertexBuffer, WGPUBuffer &nFacetsUniformBuffer) {
     // // Update bind group entries
     // WGPUBindGroupEntry bgEntries[2]{};
     // bgEntries[0].binding = 0;
@@ -162,19 +128,71 @@ WGPUComputePipeline App::createComputePipeline(WGPUDevice device) {
     // bgEntries[1].offset = 0;
     // bgEntries[1].size = ssboSize;
 
+	// // Create a bind group entry for the uniform
+	// WGPUBindGroupEntry uniformEntry{};
+	// uniformEntry.binding = 4; // Binding index for facets length
+	// uniformEntry.buffer = nFacetsUniformBuffer;
+	// uniformEntry.offset = 0;
+	// uniformEntry.size = sizeof(int);
+
 	WGPUBindGroupEntry bgEntry{};
 	bgEntry.binding = 0;
 	bgEntry.buffer = vertexBuffer;
 	bgEntry.offset = 0;
 	bgEntry.size = bufferSize;
 
+    // WGPUBindGroupEntry bgEntries[2] = {bgEntry, uniformEntry};
+
+
 	WGPUBindGroupDescriptor bgDesc{};
 	bgDesc.entryCount = 1;
-	// bgDesc.entryCount = 2;
 	bgDesc.entries = &bgEntry;
+	// bgDesc.entryCount = 2;
 	// bgDesc.entries = bgEntries;
 	bgDesc.layout = bgl;
-	computeBindGroup = wgpuDeviceCreateBindGroup(device, &bgDesc);
+	return wgpuDeviceCreateBindGroup(device, &bgDesc);
+}
+
+WGPUComputePipeline App::createComputePipeline(WGPUDevice device) {
+
+
+
+
+
+
+	auto bgl = createComputeBindGroupLayout(device);
+
+	// Create a buffer for the uniform
+	WGPUBufferDescriptor nFacetsUniformBufferDesc{};
+	nFacetsUniformBufferDesc.size = sizeof(int); // Size for an int
+	nFacetsUniformBufferDesc.usage = WGPUBufferUsage_Uniform;
+	WGPUBuffer nFacetsUniformBuffer = wgpuDeviceCreateBuffer(device, &nFacetsUniformBufferDesc);
+
+	// Update uniform buffer with length value
+	int facetsLength = 10; // Set this to your facets array length
+	wgpuQueueWriteBuffer(wgpuDeviceGetQueue(device), nFacetsUniformBuffer, 0, &facetsLength, sizeof(int));
+
+	// Create vertex buffer
+	WGPUBufferDescriptor vertexBufferDesc{};
+	vertexBufferDesc.usage = WGPUBufferUsage_Storage | WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst;
+	vertexBufferDesc.size = bufferSize;
+	vertexBufferDesc.label = "vertex_storage_buffer";
+	vertexBuffer = wgpuDeviceCreateBuffer(device, &vertexBufferDesc);
+
+//    // Create SSBO buffer
+//     WGPUBufferDescriptor ssboDesc{};
+//     ssboDesc.usage = WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst;
+//     ssboDesc.size = ssboSize;
+//     ssboDesc.label = "ssbo_buffer";
+
+    // // Create the SSBO and upload data
+    // WGPUBuffer ssboBuffer = wgpuDeviceCreateBuffer(device, &ssboDesc);
+    // wgpuQueueWriteBuffer(wgpuDeviceGetQueue(device), ssboBuffer, 0, ssboData, ssboSize);
+
+
+
+
+	computeBindGroup = createComputeBindGroup(device, bgl, vertexBuffer, nFacetsUniformBuffer);
 
 	WGPUShaderModule shaderModule = Shader::createShaderModule(device, "shaders/compute.wgsl");
 
